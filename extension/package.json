@@ -1,0 +1,23 @@
+{
+  "name": "definitive-fantasy-sync-extension",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "lint:firefox": "web-ext lint --source-dir releases/firefox",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run build && npm run lint:firefox && npm test && node --check src/popup.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "linkedom": "0.18.13",
+    "web-ext": "10.7.0"
+  }
+}
