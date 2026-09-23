@@ -148,16 +148,16 @@
         </div>
     </div>
 
-    <!-- JS Scripts (jQuery, DataTables, Supabase) -->
+    <!-- JS Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // 1. Supabase Initialization (Unified)
+        // 1. Supabase Initialization - RENAMED to supaClient to fix SyntaxError
         const SUPABASE_URL = 'https://zkuwkyfofloayoeoyyej.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprdXdreWZvZmxvYXlvZW95eWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMjAxNTksImV4cCI6MjEwNTY5NjE1OX0.LP-WqRyIB0oLTtHHAAlv5bD2Cq8-UZR4sksT9UHpBZk';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentMode = 'login';
         let currentUser = null;
@@ -165,10 +165,10 @@
 
         // 2. Auth State Listeners
         document.addEventListener('DOMContentLoaded', async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supaClient.auth.getSession();
             updateAuthUI(session?.user || null);
 
-            supabase.auth.onAuthStateChange((_event, session) => {
+            supaClient.auth.onAuthStateChange((_event, session) => {
                 updateAuthUI(session?.user || null);
             });
         });
@@ -176,10 +176,10 @@
         // 3. Database Explorer Logic
         $(document).ready(async function() {
             // Fetch available tables
-            const { data: tables, error: tableErr } = await supabase.rpc('get_tables');
+            const { data: tables, error: tableErr } = await supaClient.rpc('get_tables');
             if (tableErr) {
                 console.error("Error fetching tables:", tableErr);
-                $('#tableContainer').html('<p class="text-amber-400 text-center py-8">Failed to load tables. Verify RLS permissions and API key.</p>');
+                $('#tableContainer').html('<p class="text-amber-400 text-center py-8">Failed to load tables. Ensure the get_tables RPC function is active in Supabase.</p>');
                 return;
             }
 
@@ -197,7 +197,7 @@
 
                 $('#tableContainer').html('<p class="text-slate-400 text-center py-12 animate-pulse">Fetching records from Supabase...</p>');
 
-                const { data, error } = await supabase
+                const { data, error } = await supaClient
                     .from(tableName)
                     .select('*')
                     .limit(1000);
@@ -261,7 +261,7 @@
             statusEl.className = "mt-4 text-center text-xs text-slate-400";
 
             if (currentMode === 'signup') {
-                const { data, error } = await supabase.auth.signUp({
+                const { data, error } = await supaClient.auth.signUp({
                     email,
                     password,
                     options: { data: { username: username || email.split('@')[0] } }
@@ -276,7 +276,7 @@
                     setTimeout(() => toggleAuthModal(false), 1200);
                 }
             } else {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                const { data, error } = await supaClient.auth.signInWithPassword({ email, password });
 
                 if (error) {
                     statusEl.innerText = error.message;
@@ -290,7 +290,7 @@
         }
 
         async function handleSignOut() {
-            await supabase.auth.signOut();
+            await supaClient.auth.signOut();
         }
 
         async function updateAuthUI(user) {
@@ -300,7 +300,7 @@
             const navUsername = document.getElementById('navUsername');
 
             if (user) {
-                const { data: profile } = await supabase
+                const { data: profile } = await supaClient
                     .from('users')
                     .select('username')
                     .eq('id', user.id)
