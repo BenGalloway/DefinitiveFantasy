@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { width: 320px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 16px; box-sizing: border-box; }
     h3 { margin: 0 0 4px 0; font-size: 16px; color: #34d399; }
@@ -12,63 +13,60 @@
     input:focus { outline: none; border-color: #10b981; }
     button { width: 100%; padding: 9px; background: #10b981; border: none; color: white; font-weight: 600; border-radius: 6px; cursor: pointer; font-size: 13px; }
     button:hover { background: #059669; }
+    button:disabled { opacity: 0.65; cursor: wait; }
     button.secondary { background: transparent; border: 1px solid #475569; color: #94a3b8; margin-top: 6px; }
     button.secondary:hover { background: #334155; color: white; }
-    .status { font-size: 12px; margin-top: 8px; text-align: center; }
-    .league-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #334155; font-size: 12px; }
+    .status { font-size: 12px; margin-top: 8px; text-align: center; overflow-wrap: anywhere; }
+    .league-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #334155; font-size: 12px; overflow-wrap: anywhere; }
     .league-item:last-child { border-bottom: none; }
+    .league-id { color: #94a3b8; font-size: 10px; margin-top: 2px; }
+    .active { color: #34d399; font-size: 10px; white-space: nowrap; }
+    .empty { color: #94a3b8; text-align: center; margin: 4px 0; }
+    .privacy-note { font-size: 11px; line-height: 1.4; color: #cbd5e1; margin: 0 0 12px; }
     .hidden { display: none; }
   </style>
 </head>
 <body>
-
-  <!-- LOGIN SECTION -->
   <div id="loginSection">
     <h3>Definitive Fantasy</h3>
     <p>Sign in to sync your ESPN leagues.</p>
     <div class="card">
       <label for="email">Email</label>
-      <input type="email" id="email" placeholder="you@example.com" />
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="username">
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="••••••••" />
-      <button id="loginBtn">Log In</button>
+      <input type="password" id="password" autocomplete="current-password">
+      <button id="loginBtn" type="button">Log In</button>
     </div>
   </div>
 
-  <!-- MAIN APP SECTION -->
   <div id="appSection" class="hidden">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div>
         <h3>Definitive Fantasy</h3>
         <span id="userEmail" style="font-size: 11px; color: #94a3b8;"></span>
       </div>
-      <button id="logoutBtn" class="secondary" style="width: auto; padding: 4px 8px; margin: 0;">Logout</button>
+      <button id="logoutBtn" type="button" class="secondary" style="width: auto; padding: 4px 8px; margin: 0;">Logout</button>
     </div>
 
-    <!-- Sync New League -->
     <div class="card">
       <label for="leagueName">League Nickname (Optional)</label>
-      <input type="text" id="leagueName" placeholder="e.g. Home League" />
-      
+      <input type="text" id="leagueName" placeholder="e.g. Home League">
       <label for="leagueId">ESPN League ID</label>
-      <input type="text" id="leagueId" placeholder="e.g. 12345678" />
-      
-      <button id="syncBtn">+ Sync ESPN League</button>
+      <input type="text" id="leagueId" placeholder="e.g. 12345678" inputmode="numeric">
+      <p class="privacy-note">Sync uploads your ESPN login cookies to Definitive Fantasy. Treat them like passwords.</p>
+      <button id="syncBtn" type="button">+ Sync ESPN League</button>
     </div>
 
-    <!-- Synced Leagues List -->
     <div class="card">
       <label>Your Synced Leagues</label>
-      <div id="leagueList">
-        <p style="text-align: center; margin: 8px 0;">Loading leagues...</p>
-      </div>
+      <div id="leagueList"><p class="empty">Loading leagues...</p></div>
     </div>
   </div>
 
-  <div id="status" class="status"></div>
+  <div id="status" class="status" role="status" aria-live="polite"></div>
 
-  <!-- Supabase SDK & Extension Logic -->
+  <!-- Both JavaScript files are bundled locally; MV3 disallows remotely hosted code. -->
   <script src="supabase.js"></script>
   <script src="popup.js"></script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3fc44dd5f5c3f1e',t:'MTc5MDE5NTAyNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

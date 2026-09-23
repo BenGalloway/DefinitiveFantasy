@@ -1,146 +1,199 @@
-// Supabase Setup
-const SUPABASE_URL = 'https://zkuwkyfofloayoeoyyej.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_uL7Gr0GAON_cP2bbSggPFw_3wdu1sTB'; // Replace with your publishable key
+'use strict';
 
-// Adapter to persist Supabase session inside Chrome Extension Storage
-const chromeStorageAdapter = {
-  getItem: (key) => new Promise(resolve => chrome.storage.local.get([key], res => resolve(res[key] || null))),
-  setItem: (key, value) => new Promise(resolve => chrome.storage.local.set({ [key]: value }, resolve)),
-  removeItem: (key) => new Promise(resolve => chrome.storage.local.remove([key], resolve))
+// Firefox exposes promise-based browser.*, and modern Chromium MV3 exposes
+// promise-based chrome.* for the storage/cookies APIs used here.
+const ext = globalThis.browser ?? globalThis.chrome;
+const SUPABASE_URL = 'https://zkuwkyfofloayoeoyyej.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_uL7Gr0GAON_cP2bbSggPFw_3wdu1sTB'; // Public key, never a service-role key.
+
+// Persist the Supabase auth session across popup closes (separately in each browser).
+const extensionStorage = {
+  getItem: async (key) => (await ext.storage.local.get(key))[key] ?? null,
+  setItem: (key, value) => ext.storage.local.set({ [key]: value }),
+  removeItem: (key) => ext.storage.local.remove(key),
 };
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { storage: chromeStorageAdapter, persistSession: true }
+const supabaseClient = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: extensionStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
 });
 
 let currentUser = null;
+const el = (id) => document.getElementById(id);
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // Check active session
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    showApp();
-  } else {
-    showLogin();
-  }
-});
-
-// LOGIN EVENT
-document.getElementById('loginBtn').addEventListener('click', async () => {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-  const statusEl = document.getElementById('status');
-
-  statusEl.innerText = "Authenticating...";
-  statusEl.style.color = "#94a3b8";
-
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    statusEl.innerText = error.message;
-    statusEl.style.color = "#f87171";
-  } else {
-    currentUser = data.user;
-    statusEl.innerText = "";
-    showApp();
-  }
-});
-
-// LOGOUT EVENT
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-  await supabaseClient.auth.signOut();
-  currentUser = null;
-  showLogin();
-});
-
-// SYNC LEAGUE EVENT
-document.getElementById('syncBtn').addEventListener('click', async () => {
-  const leagueId = document.getElementById('leagueId').value.trim();
-  const leagueName = document.getElementById('leagueName').value.trim() || `League ${leagueId}`;
-  const statusEl = document.getElementById('status');
-
-  if (!leagueId) {
-    statusEl.innerText = "Please enter an ESPN League ID.";
-    statusEl.style.color = "#f87171";
-    return;
-  }
-
-  statusEl.innerText = "Fetching ESPN cookies...";
-  statusEl.style.color = "#94a3b8";
-
-  try {
-    // 1. Fetch SWID and espn_s2 from active browser cookies for espn.com
-    const swidCookie = await chrome.cookies.get({ url: "https://www.espn.com", name: "SWID" });
-    const espnS2Cookie = await chrome.cookies.get({ url: "https://www.espn.com", name: "espn_s2" });
-
-    if (!swidCookie || !espnS2Cookie) {
-      statusEl.innerText = "ESPN cookies not found. Make sure you are logged into ESPN in Chrome!";
-      statusEl.style.color = "#f87171";
-      return;
-    }
-
-    // 2. Upsert credentials to user_leagues table
-    const { error } = await supabaseClient
-      .from('user_leagues')
-      .upsert({
-        user_id: currentUser.id,
-        league_id: leagueId,
-        league_name: leagueName,
-        swid: swidCookie.value,
-        espn_s2: espnS2Cookie.value
-      }, { onConflict: 'user_id, league_id' });
-
-    if (error) throw error;
-
-    statusEl.innerText = "League synced successfully!";
-    statusEl.style.color = "#34d399";
-    
-    // Clear inputs and refresh list
-    document.getElementById('leagueId').value = "";
-    document.getElementById('leagueName').value = "";
-    loadUserLeagues();
-
-  } catch (err) {
-    console.error(err);
-    statusEl.innerText = "Error: " + err.message;
-    statusEl.style.color = "#f87171";
-  }
-});
-
-// LOAD USER'S SYNCED LEAGUES
-async function loadUserLeagues() {
-  const listEl = document.getElementById('leagueList');
-  
-  const { data: leagues, error } = await supabaseClient
-    .from('user_leagues')
-    .select('league_id, league_name, created_at')
-    .eq('user_id', currentUser.id);
-
-  if (error || !leagues || leagues.length === 0) {
-    listEl.innerHTML = '<p style="text-align: center; color: #64748b; margin: 4px 0;">No synced leagues yet.</p>';
-    return;
-  }
-
-  listEl.innerHTML = leagues.map(l => `
-    <div class="league-item">
-      <div>
-        <strong style="color: #f8fafc;">${l.league_name}</strong>
-        <div style="color: #64748b; font-size: 10px;">ID: ${l.league_id}</div>
-      </div>
-      <span style="color: #34d399; font-size: 10px;">✓ Active</span>
-    </div>
-  `).join('');
+function setStatus(message, kind = 'neutral') {
+  const colors = { neutral: '#94a3b8', error: '#f87171', success: '#34d399' };
+  el('status').textContent = message;
+  el('status').style.color = colors[kind];
 }
 
 function showLogin() {
-  document.getElementById('loginSection').classList.remove('hidden');
-  document.getElementById('appSection').classList.add('hidden');
+  el('loginSection').classList.remove('hidden');
+  el('appSection').classList.add('hidden');
 }
 
 function showApp() {
-  document.getElementById('loginSection').classList.add('hidden');
-  document.getElementById('appSection').classList.remove('hidden');
-  document.getElementById('userEmail').innerText = currentUser.email;
-  loadUserLeagues();
+  el('loginSection').classList.add('hidden');
+  el('appSection').classList.remove('hidden');
+  el('userEmail').textContent = currentUser.email ?? '';
+  void loadUserLeagues();
 }
+
+function showListMessage(message) {
+  const paragraph = document.createElement('p');
+  paragraph.className = 'empty';
+  paragraph.textContent = message;
+  el('leagueList').replaceChildren(paragraph);
+}
+
+async function loadUserLeagues() {
+  try {
+    const { data: leagues, error } = await supabaseClient
+      .from('user_leagues')
+      .select('league_id, league_name')
+      .eq('user_id', currentUser.id);
+
+    if (error) throw error;
+    if (!leagues?.length) {
+      showListMessage('No synced leagues yet.');
+      return;
+    }
+
+    // Do not interpolate a league name into innerHTML: it is user-controlled.
+    const fragment = document.createDocumentFragment();
+    for (const league of leagues) {
+      const row = document.createElement('div');
+      row.className = 'league-item';
+      const details = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = league.league_name || `League ${league.league_id}`;
+      const id = document.createElement('div');
+      id.className = 'league-id';
+      id.textContent = `ID: ${league.league_id}`;
+      const active = document.createElement('span');
+      active.className = 'active';
+      active.textContent = '✓ Active';
+      details.append(title, id);
+      row.append(details, active);
+      fragment.append(row);
+    }
+    el('leagueList').replaceChildren(fragment);
+  } catch (error) {
+    showListMessage('Could not load leagues.');
+    setStatus(`Could not load leagues: ${error.message}`, 'error');
+  }
+}
+
+async function handleLogin() {
+  const email = el('email').value.trim();
+  const password = el('password').value; // Never trim a password.
+  if (!email || !password) {
+    setStatus('Enter your email and password.', 'error');
+    return;
+  }
+
+  el('loginBtn').disabled = true;
+  setStatus('Authenticating...');
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (!data?.user) throw new Error('No account was returned.');
+    currentUser = data.user;
+    el('password').value = '';
+    setStatus('');
+    showApp();
+  } catch (error) {
+    setStatus(`Could not log in: ${error.message}`, 'error');
+  } finally {
+    el('loginBtn').disabled = false;
+  }
+}
+
+async function handleLogout() {
+  el('logoutBtn').disabled = true;
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) throw error;
+    currentUser = null;
+    setStatus('Signed out.');
+    showLogin();
+  } catch (error) {
+    setStatus(`Could not log out: ${error.message}`, 'error');
+  } finally {
+    el('logoutBtn').disabled = false;
+  }
+}
+
+async function handleSync() {
+  const leagueId = el('leagueId').value.trim();
+  const leagueName = el('leagueName').value.trim() || `League ${leagueId}`;
+  if (!/^\d+$/.test(leagueId)) {
+    setStatus('Enter a numeric ESPN League ID.', 'error');
+    return;
+  }
+  if (!currentUser) {
+    setStatus('Please sign in first.', 'error');
+    return;
+  }
+
+  el('syncBtn').disabled = true;
+  setStatus('Fetching ESPN cookies...');
+  try {
+    if (ext.permissions?.contains && !(await ext.permissions.contains({
+      origins: ['https://*.espn.com/*'],
+    }))) {
+      throw new Error('ESPN site access is disabled. Enable it in the extension permissions.');
+    }
+
+    // By default, cookies.get searches the normal browser cookie store.
+    const url = 'https://www.espn.com/';
+    const [swid, espnS2] = await Promise.all([
+      ext.cookies.get({ url, name: 'SWID' }),
+      ext.cookies.get({ url, name: 'espn_s2' }),
+    ]);
+    if (!swid || !espnS2) {
+      throw new Error('ESPN cookies not found. Log in to ESPN in this browser (normal profile, not a Firefox Container).');
+    }
+
+    // This mirrors the original behavior. BEFORE real use, protect these
+    // account-level secrets server-side; see README's security warning.
+    const { error } = await supabaseClient.from('user_leagues').upsert({
+      user_id: currentUser.id,
+      league_id: leagueId,
+      league_name: leagueName,
+      swid: swid.value,
+      espn_s2: espnS2.value,
+    }, { onConflict: 'user_id,league_id' });
+    if (error) throw error;
+
+    el('leagueId').value = '';
+    el('leagueName').value = '';
+    setStatus('League synced successfully!', 'success');
+    await loadUserLeagues();
+  } catch (error) {
+    setStatus(`Could not sync: ${error.message}`, 'error');
+  } finally {
+    el('syncBtn').disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  el('loginBtn').addEventListener('click', handleLogin);
+  el('logoutBtn').addEventListener('click', handleLogout);
+  el('syncBtn').addEventListener('click', handleSync);
+
+  try {
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    currentUser = data?.session?.user ?? null;
+    if (currentUser) showApp();
+    else showLogin();
+  } catch (error) {
+    showLogin();
+    setStatus(`Could not restore your session: ${error.message}`, 'error');
+  }
+});
