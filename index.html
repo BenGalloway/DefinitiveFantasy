@@ -156,8 +156,8 @@
     <script>
         // 1. Supabase Initialization (Unified)
         const SUPABASE_URL = 'https://zkuwkyfofloayoeoyyej.supabase.co';
-        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_uL7Gr0GAON_cP2bbSggPFw_3wdu1sTB';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprdXdreWZvZmxvYXlvZW95eWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMjAxNTksImV4cCI6MjEwNTY5NjE1OX0.LP-WqRyIB0oLTtHHAAlv5bD2Cq8-UZR4sksT9UHpBZk';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentMode = 'login';
         let currentUser = null;
