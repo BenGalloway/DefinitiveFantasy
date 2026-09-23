@@ -26,7 +26,6 @@
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <style>
-        /* Custom Overrides for DataTables styling */
         .dataTables_wrapper .dataTables_length, 
         .dataTables_wrapper .dataTables_filter { margin-bottom: 1rem; }
         table.dataTable { border-collapse: collapse !important; border-radius: 0.5rem; overflow: hidden; }
@@ -35,9 +34,9 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen antialiased">
 
-    <!-- Top Brand Header -->
-    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <!-- Single Unified Brand Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-40 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="h-9 w-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-emerald-400">
                     DF
@@ -47,15 +46,30 @@
                     <span class="text-xs text-slate-400 font-medium">League Intelligence Engine</span>
                 </div>
             </div>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> DB Connected
-            </span>
+
+            <div class="flex items-center gap-4">
+                <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> DB Connected
+                </span>
+
+                <!-- Dynamic Auth Button / Profile -->
+                <div id="authNav">
+                    <button id="openAuthModalBtn" onclick="toggleAuthModal(true)" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs sm:text-sm px-4 py-2 rounded-lg transition">
+                        Log In / Register
+                    </button>
+                    <div id="userProfile" class="hidden flex items-center space-x-3">
+                        <span id="navUsername" class="text-slate-300 text-sm font-medium"></span>
+                        <button onclick="handleSignOut()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-md border border-slate-600 transition">
+                            Log Out
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 
     <!-- Main Content Container -->
     <main class="max-w-7xl mx-auto px-6 py-8">
-        
         <!-- Quick Stat / Metric Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 backdrop-blur-sm">
@@ -99,35 +113,81 @@
         </div>
     </main>
 
-<!-- JS Scripts (jQuery, DataTables, Supabase) -->
+    <!-- Auth Modal Overlay -->
+    <div id="authModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-xl p-6 shadow-2xl relative">
+            <button onclick="toggleAuthModal(false)" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">&times;</button>
+            
+            <div class="flex border-b border-slate-700 mb-6">
+                <button id="loginTab" onclick="switchTab('login')" class="flex-1 pb-3 font-semibold text-emerald-400 border-b-2 border-emerald-400">Log In</button>
+                <button id="signupTab" onclick="switchTab('signup')" class="flex-1 pb-3 font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200">Sign Up</button>
+            </div>
+
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div id="usernameField" class="hidden">
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Username</label>
+                    <input type="text" id="authUsername" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 text-sm focus:outline-none focus:border-emerald-500" placeholder="GridironKing">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Email</label>
+                    <input type="email" id="authEmail" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 text-sm focus:outline-none focus:border-emerald-500" placeholder="you@example.com">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Password</label>
+                    <input type="password" id="authPassword" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-slate-200 text-sm focus:outline-none focus:border-emerald-500" placeholder="••••••••">
+                </div>
+
+                <button type="submit" id="authSubmitBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-lg text-sm transition">
+                    Log In
+                </button>
+            </form>
+
+            <div id="authStatus" class="mt-4 text-center text-xs"></div>
+        </div>
+    </div>
+
+    <!-- JS Scripts (jQuery, DataTables, Supabase) -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // Supabase Configuration
+        // 1. Supabase Initialization (Unified)
         const SUPABASE_URL = 'https://zkuwkyfofloayoeoyyej.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_uL7Gr0GAON_cP2bbSggPFw_3wdu1sTB'; // <-- Paste your publishable key here
+        const SUPABASE_ANON_KEY = 'sb_publishable_uL7Gr0GAON_cP2bbSggPFw_3wdu1sTB';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentMode = 'login';
+        let currentUser = null;
+        let currentTable = null;
 
+        // 2. Auth State Listeners
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            updateAuthUI(session?.user || null);
+
+            supabase.auth.onAuthStateChange((_event, session) => {
+                updateAuthUI(session?.user || null);
+            });
+        });
+
+        // 3. Database Explorer Logic
         $(document).ready(async function() {
-            let currentTable = null;
-
-            // 1. Fetch available tables using the get_tables RPC function
-            const { data: tables, error: tableErr } = await supabaseClient.rpc('get_tables');
+            // Fetch available tables
+            const { data: tables, error: tableErr } = await supabase.rpc('get_tables');
             if (tableErr) {
                 console.error("Error fetching tables:", tableErr);
                 $('#tableContainer').html('<p class="text-amber-400 text-center py-8">Failed to load tables. Verify RLS permissions and API key.</p>');
                 return;
             }
 
-            // Populate dropdown menu
             tables.forEach(row => {
                 $('#tableSelect').append(new Option(row.table_name, row.table_name));
             });
 
-            // 2. Query table data when a user selects a table
+            // Handle table switching
             $('#tableSelect').change(async function() {
                 const tableName = $(this).val();
                 if (!tableName) {
@@ -135,11 +195,9 @@
                     return;
                 }
 
-                // Loading feedback
                 $('#tableContainer').html('<p class="text-slate-400 text-center py-12 animate-pulse">Fetching records from Supabase...</p>');
 
-                // Query up to 1,000 rows from the selected table
-                const { data, error } = await supabaseClient
+                const { data, error } = await supabase
                     .from(tableName)
                     .select('*')
                     .limit(1000);
@@ -150,21 +208,17 @@
                     return;
                 }
 
-                // Destroy previous DataTables instance to prevent duplicate table errors
                 if (currentTable) {
                     currentTable.destroy();
                 }
 
-                // Dynamically build column headers from the first row's JSON keys
                 const columns = Object.keys(data[0]).map(key => ({
                     title: key.replace(/_/g, ' ').toUpperCase(),
                     data: key
                 }));
 
-                // Inject a clean table element into the container
                 $('#tableContainer').html('<table id="dynamicTable" class="display nowrap w-full"></table>');
 
-                // Initialize DataTable
                 currentTable = $('#dynamicTable').DataTable({
                     data: data,
                     columns: columns,
@@ -173,6 +227,93 @@
                 });
             });
         });
+
+        // 4. Auth Modal & UI Helpers
+        function toggleAuthModal(show) {
+            document.getElementById('authModal').classList.toggle('hidden', !show);
+            document.getElementById('authStatus').innerText = '';
+        }
+
+        function switchTab(mode) {
+            currentMode = mode;
+            const isLogin = mode === 'login';
+            
+            document.getElementById('loginTab').className = isLogin 
+                ? "flex-1 pb-3 font-semibold text-emerald-400 border-b-2 border-emerald-400" 
+                : "flex-1 pb-3 font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200";
+                
+            document.getElementById('signupTab').className = !isLogin 
+                ? "flex-1 pb-3 font-semibold text-emerald-400 border-b-2 border-emerald-400" 
+                : "flex-1 pb-3 font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200";
+
+            document.getElementById('usernameField').classList.toggle('hidden', isLogin);
+            document.getElementById('authSubmitBtn').innerText = isLogin ? 'Log In' : 'Create Account';
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('authEmail').value.trim();
+            const password = document.getElementById('authPassword').value.trim();
+            const username = document.getElementById('authUsername').value.trim();
+            const statusEl = document.getElementById('authStatus');
+
+            statusEl.innerText = "Processing...";
+            statusEl.className = "mt-4 text-center text-xs text-slate-400";
+
+            if (currentMode === 'signup') {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: { data: { username: username || email.split('@')[0] } }
+                });
+
+                if (error) {
+                    statusEl.innerText = error.message;
+                    statusEl.className = "mt-4 text-center text-xs text-red-400";
+                } else {
+                    statusEl.innerText = "Account created! You are now logged in.";
+                    statusEl.className = "mt-4 text-center text-xs text-emerald-400";
+                    setTimeout(() => toggleAuthModal(false), 1200);
+                }
+            } else {
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+                if (error) {
+                    statusEl.innerText = error.message;
+                    statusEl.className = "mt-4 text-center text-xs text-red-400";
+                } else {
+                    statusEl.innerText = "Success!";
+                    statusEl.className = "mt-4 text-center text-xs text-emerald-400";
+                    setTimeout(() => toggleAuthModal(false), 800);
+                }
+            }
+        }
+
+        async function handleSignOut() {
+            await supabase.auth.signOut();
+        }
+
+        async function updateAuthUI(user) {
+            currentUser = user;
+            const openAuthBtn = document.getElementById('openAuthModalBtn');
+            const userProfile = document.getElementById('userProfile');
+            const navUsername = document.getElementById('navUsername');
+
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('username')
+                    .eq('id', user.id)
+                    .single();
+
+                navUsername.innerText = profile?.username || user.email;
+                openAuthBtn.classList.add('hidden');
+                userProfile.classList.remove('hidden');
+            } else {
+                openAuthBtn.classList.remove('hidden');
+                userProfile.classList.add('hidden');
+            }
+        }
     </script>
 </body>
 </html>
