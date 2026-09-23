@@ -26,6 +26,10 @@
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <style>
+        .dataTables_scrollHeadInner, 
+        .dataTables_scrollHeadInner table.dataTable {
+        width: 100% !important;
+        }
         .dataTables_wrapper .dataTables_length, 
         .dataTables_wrapper .dataTables_filter { margin-bottom: 1rem; }
         table.dataTable { border-collapse: collapse !important; border-radius: 0.5rem; overflow: hidden; }
@@ -223,8 +227,12 @@
                     data: data,
                     columns: columns,
                     pageLength: 25,
-                    scrollX: true
+                    scrollX: true,
+                    autoWidth: false // prevent weird column header width
                 });
+                setTimeout(() => {
+                    currentTable.columns.adjust();
+                }, 10);
             });
         });
 
