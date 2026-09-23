@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Definitive Fantasy Sync",
+  "version": "1.0",
+  "description": "Sync private ESPN fantasy leagues to your Definitive Fantasy account.",
+  "permissions": ["cookies", "storage"],
+  "host_permissions": [
+    "https://*.espn.com/*",
+    "https://*.supabase.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
