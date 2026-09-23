@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Definitive Fantasy | Analytics Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { brand: { 50: '#f0fdf4', 500: '#22c55e', 600: '#16a34a', 900: '#14532d' } }
+                }
+            }
+        }
+    </script>
+
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <style>
+        /* Custom Overrides for DataTables styling */
+        .dataTables_wrapper .dataTables_length, 
+        .dataTables_wrapper .dataTables_filter { margin-bottom: 1rem; }
+        table.dataTable { border-collapse: collapse !important; border-radius: 0.5rem; overflow: hidden; }
+        table.dataTable thead th { background-color: #0f172a; color: #f8fafc; font-weight: 600; padding: 12px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased">
+
+    <!-- Top Brand Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="h-9 w-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-bold text-emerald-400">
+                    DF
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none tracking-tight text-white">Definitive Fantasy</h1>
+                    <span class="text-xs text-slate-400 font-medium">League Intelligence Engine</span>
+                </div>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> DB Connected
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        
+        <!-- Quick Stat / Metric Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 backdrop-blur-sm">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Database Status</p>
+                <p class="text-2xl font-bold text-white mt-1">PostgreSQL Cloud</p>
+                <p class="text-xs text-slate-500 mt-1">Real-time sync active</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 backdrop-blur-sm">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Primary Model</p>
+                <p class="text-2xl font-bold text-emerald-400 mt-1">NGS & VORP Projections</p>
+                <p class="text-xs text-slate-500 mt-1">Updated weekly</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-5 backdrop-blur-sm">
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Data Explorer</p>
+                <p class="text-2xl font-bold text-white mt-1">Dynamic Inspector</p>
+                <p class="text-xs text-slate-500 mt-1">Select table below to query</p>
+            </div>
+        </div>
+
+        <!-- Data Explorer Card -->
+        <div class="bg-slate-800/40 border border-slate-700/60 rounded-xl p-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Database Explorer</h2>
+                    <p class="text-sm text-slate-400">Select any table from the database schema to view historical records.</p>
+                </div>
+                
+                <!-- Custom Styled Select Dropdown -->
+                <div class="flex items-center gap-3">
+                    <label for="tableSelect" class="text-sm font-medium text-slate-300 whitespace-nowrap">Table:</label>
+                    <select id="tableSelect" class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block w-full p-2.5">
+                        <option value="">-- Choose a table --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div id="tableContainer" class="text-slate-300 text-sm overflow-hidden">
+                <p class="text-slate-500 italic text-center py-12">Select a table from the dropdown menu above to load dataset.</p>
+            </div>
+        </div>
+    </main>
+
+<!-- JS Scripts (jQuery, DataTables, Supabase) -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://zkuwkyfofloayoeoyyej.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_uL7Gr0GAON_cP2bbSggPFw_3wdu1sTB'; // <-- Paste your publishable key here
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        $(document).ready(async function() {
+            let currentTable = null;
+
+            // 1. Fetch available tables using the get_tables RPC function
+            const { data: tables, error: tableErr } = await supabaseClient.rpc('get_tables');
+            if (tableErr) {
+                console.error("Error fetching tables:", tableErr);
+                $('#tableContainer').html('<p class="text-amber-400 text-center py-8">Failed to load tables. Verify RLS permissions and API key.</p>');
+                return;
+            }
+
+            // Populate dropdown menu
+            tables.forEach(row => {
+                $('#tableSelect').append(new Option(row.table_name, row.table_name));
+            });
+
+            // 2. Query table data when a user selects a table
+            $('#tableSelect').change(async function() {
+                const tableName = $(this).val();
+                if (!tableName) {
+                    $('#tableContainer').html('<p class="text-slate-500 italic text-center py-12">Select a table from the dropdown menu above to load dataset.</p>');
+                    return;
+                }
+
+                // Loading feedback
+                $('#tableContainer').html('<p class="text-slate-400 text-center py-12 animate-pulse">Fetching records from Supabase...</p>');
+
+                // Query up to 1,000 rows from the selected table
+                const { data, error } = await supabaseClient
+                    .from(tableName)
+                    .select('*')
+                    .limit(1000);
+
+                if (error || !data || data.length === 0) {
+                    console.error("Query error:", error);
+                    $('#tableContainer').html('<p class="text-amber-400 text-center py-8">No records found or table permissions restricted.</p>');
+                    return;
+                }
+
+                // Destroy previous DataTables instance to prevent duplicate table errors
+                if (currentTable) {
+                    currentTable.destroy();
+                }
+
+                // Dynamically build column headers from the first row's JSON keys
+                const columns = Object.keys(data[0]).map(key => ({
+                    title: key.replace(/_/g, ' ').toUpperCase(),
+                    data: key
+                }));
+
+                // Inject a clean table element into the container
+                $('#tableContainer').html('<table id="dynamicTable" class="display nowrap w-full"></table>');
+
+                // Initialize DataTable
+                currentTable = $('#dynamicTable').DataTable({
+                    data: data,
+                    columns: columns,
+                    pageLength: 25,
+                    scrollX: true
+                });
+            });
+        });
+    </script>
+</body>
+</html>
